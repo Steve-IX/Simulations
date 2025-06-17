@@ -41,8 +41,3 @@ python pendulum.py
 ## Purpose
 
 These examples illustrate basic physics concepts and serve as a starting point for more involved simulations with VPython. Feel free to experiment with different parameters or extend the code for further study.
-
-## License
-
-No license file is provided with this repository.
-
