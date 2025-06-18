@@ -1,4 +1,4 @@
-# Simulations
+# Simulations.
 
 A collection of small physics demonstrations created with the [VPython](https://vpython.org) module. These scripts were written during a first year university course and showcase basic techniques for simulating motion in three dimensions.
 
