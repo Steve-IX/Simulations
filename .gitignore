@@ -1,0 +1,42 @@
+# Build directories
+build/
+build-*/
+
+# External dependencies (downloaded via script)
+external/glad/
+external/glfw/
+external/glm/
+external/stb/
+
+# IDE files
+.vscode/
+.vs/
+*.vcxproj*
+*.sln
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+
+# Object files
+*.o
+*.obj
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
+# OS specific files
+.DS_Store
+Thumbs.db 
