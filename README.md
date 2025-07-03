@@ -1,6 +1,6 @@
 # Professional Flight Simulator
 
-A realistic flight simulator built with modern C++ and OpenGL, featuring accurate flight physics, multiple camera modes, and professional flight instrumentation.
+A realistic flight simulator built with modern C++ and OpenGL, featuring accurate flight physics, multiple camera modes, and professional flight instrumentation
 
 ## Features
 
