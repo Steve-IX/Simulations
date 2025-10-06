@@ -8,33 +8,42 @@ namespace FlightSim {
 struct ControlInputs;
 struct AircraftState;
 
+// MSFS-Style Aerodynamic Coefficients
 struct AerodynamicCoefficients {
     // Lift coefficients
-    float CL0 = 0.4f;        // Zero angle of attack lift coefficient
-    float CLa = 5.7f;        // Lift curve slope (per radian)
-    float CLmax = 1.4f;      // Maximum lift coefficient
+    float CL0 = 0.28f;       // Zero AoA lift coefficient
+    float CLa = 5.5f;        // Lift curve slope (per radian)
+    float CLmax = 1.6f;      // Maximum lift coefficient
+    float CLmin = -1.2f;     // Minimum lift coefficient (negative stall)
     
     // Drag coefficients
-    float CD0 = 0.03f;       // Zero-lift drag coefficient
-    float CDi = 0.04f;       // Induced drag factor
+    float CD0 = 0.025f;      // Zero-lift drag (parasite drag)
+    float CDi = 0.045f;      // Induced drag factor
+    float CDmax = 2.0f;      // Maximum drag (stall)
     
     // Moment coefficients
-    float Cm0 = -0.1f;       // Zero angle of attack moment coefficient
-    float Cma = -0.8f;       // Moment curve slope (stability)
+    float Cm0 = -0.02f;      // Zero AoA moment coefficient
+    float Cma = -0.6f;       // Pitch stability derivative
+    float Cmq = -15.0f;      // Pitch damping
     
-    // Control surface effectiveness
-    float CLde = 0.4f;       // Elevator lift effectiveness
-    float Cmde = -1.2f;      // Elevator moment effectiveness
-    float Cydr = 0.3f;       // Rudder side force effectiveness
-    float Cndr = -0.1f;      // Rudder yaw moment effectiveness
-    float Clda = 0.2f;       // Aileron roll moment effectiveness
+    // Control effectiveness
+    float CLde = 0.5f;       // Elevator lift effectiveness
+    float Cmde = -1.5f;      // Elevator moment effectiveness
+    float Cydr = 0.35f;      // Rudder side force
+    float Cndr = -0.12f;     // Rudder yaw moment
+    float Clda = 0.25f;      // Aileron roll moment
+    float Cnda = -0.02f;     // Adverse yaw from ailerons
+    
+    // Damping coefficients
+    float Clp = -0.5f;       // Roll damping
+    float Cnr = -0.3f;       // Yaw damping
 };
 
 struct EnvironmentData {
-    float airDensity = 1.225f;     // kg/m³ at sea level
-    glm::vec3 windVelocity{0.0f};  // m/s
-    float temperature = 288.15f;    // Kelvin at sea level
-    float pressure = 101325.0f;     // Pa at sea level
+    float airDensity = 1.225f;
+    glm::vec3 windVelocity{0.0f};
+    float temperature = 288.15f;
+    float pressure = 101325.0f;
 };
 
 class FlightDynamics {
@@ -44,7 +53,7 @@ public:
     void SetAircraftParameters(float mass, float wingArea, float wingspan, const glm::mat3& inertiaTensor);
     void SetAerodynamicCoefficients(const AerodynamicCoefficients& coeffs);
     
-    // Main physics calculation
+    // Main physics calculation - MSFS style
     void CalculateForces(const AircraftState& state, const ControlInputs& controls, 
                         glm::vec3& forces, glm::vec3& torques);
     
@@ -54,7 +63,7 @@ public:
     glm::vec3 CalculateGravityForce(const AircraftState& state);
     glm::vec3 CalculateThrustForce(const AircraftState& state, float throttle, float maxThrust);
     
-    // Environment effects
+    // Environment
     void SetEnvironment(const EnvironmentData& env) { m_environment = env; }
     float GetAirDensity(float altitude) const;
     
@@ -64,23 +73,19 @@ public:
     float GetDynamicPressure(const AircraftState& state) const;
     
 private:
-    // Aircraft parameters
     float m_mass;
     float m_wingArea;
     float m_wingspan;
     glm::mat3 m_inertiaTensor;
     
-    // Aerodynamic coefficients
     AerodynamicCoefficients m_aeroCoeffs;
-    
-    // Environment
     EnvironmentData m_environment;
     
     // Helper functions
     glm::vec3 WorldToBody(const glm::vec3& worldVector, const glm::quat& orientation) const;
     glm::vec3 BodyToWorld(const glm::vec3& bodyVector, const glm::quat& orientation) const;
     float CalculateLiftCoefficient(float angleOfAttack, float elevatorDeflection) const;
-    float CalculateDragCoefficient(float liftCoefficient) const;
+    float CalculateDragCoefficient(float liftCoefficient, float angleOfAttack) const;
 };
 
-} // namespace FlightSim 
+} // namespace FlightSim

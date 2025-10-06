@@ -19,6 +19,9 @@ InputManager::InputManager()
     
     std::memset(m_keys, 0, sizeof(m_keys));
     std::memset(m_keysPressed, 0, sizeof(m_keysPressed));
+    
+    // Initialize control inputs to zero
+    m_controlInputs = ControlInputs{};
 }
 
 InputManager::~InputManager() {
@@ -120,46 +123,52 @@ void InputManager::ProcessFlightControls() const {
     // Pitch control (W/S keys)
     if (m_keys[GLFW_KEY_W]) {
         m_controlInputs.elevator = std::min(m_controlInputs.elevator + 0.02f, 1.0f);
-    }
-    if (m_keys[GLFW_KEY_S]) {
+    } else if (m_keys[GLFW_KEY_S]) {
         m_controlInputs.elevator = std::max(m_controlInputs.elevator - 0.02f, -1.0f);
+    } else {
+        // Return to center when not pressed (more aggressive return to center)
+        m_controlInputs.elevator *= 0.85f;  // Faster return to center
+        if (abs(m_controlInputs.elevator) < 0.01f) {
+            m_controlInputs.elevator = 0.0f;  // Snap to zero when close
+        }
     }
     
     // Roll control (A/D keys)
     if (m_keys[GLFW_KEY_A]) {
         m_controlInputs.aileron = std::max(m_controlInputs.aileron - 0.02f, -1.0f);
-    }
-    if (m_keys[GLFW_KEY_D]) {
+    } else if (m_keys[GLFW_KEY_D]) {
         m_controlInputs.aileron = std::min(m_controlInputs.aileron + 0.02f, 1.0f);
+    } else {
+        // Return to center when not pressed (more aggressive return to center)
+        m_controlInputs.aileron *= 0.85f;  // Faster return to center
+        if (abs(m_controlInputs.aileron) < 0.01f) {
+            m_controlInputs.aileron = 0.0f;  // Snap to zero when close
+        }
     }
     
     // Yaw control (Q/E keys)
     if (m_keys[GLFW_KEY_Q]) {
         m_controlInputs.rudder = std::max(m_controlInputs.rudder - 0.02f, -1.0f);
-    }
-    if (m_keys[GLFW_KEY_E]) {
+    } else if (m_keys[GLFW_KEY_E]) {
         m_controlInputs.rudder = std::min(m_controlInputs.rudder + 0.02f, 1.0f);
-    }
-    
-    // Return controls to center when not pressed
-    if (!m_keys[GLFW_KEY_W] && !m_keys[GLFW_KEY_S]) {
-        m_controlInputs.elevator *= 0.95f;
-    }
-    if (!m_keys[GLFW_KEY_A] && !m_keys[GLFW_KEY_D]) {
-        m_controlInputs.aileron *= 0.95f;
-    }
-    if (!m_keys[GLFW_KEY_Q] && !m_keys[GLFW_KEY_E]) {
-        m_controlInputs.rudder *= 0.95f;
+    } else {
+        // Return to center when not pressed (more aggressive return to center)
+        m_controlInputs.rudder *= 0.85f;  // Faster return to center
+        if (abs(m_controlInputs.rudder) < 0.01f) {
+            m_controlInputs.rudder = 0.0f;  // Snap to zero when close
+        }
     }
 }
 
 void InputManager::ProcessThrottleControls() const {
-    // Throttle control (Shift/Ctrl keys)
-    if (m_keys[GLFW_KEY_LEFT_SHIFT]) {
-        m_controlInputs.throttle = std::min(m_controlInputs.throttle + 0.01f, 1.0f);
-    }
-    if (m_keys[GLFW_KEY_LEFT_CONTROL]) {
-        m_controlInputs.throttle = std::max(m_controlInputs.throttle - 0.01f, 0.0f);
+    // Throttle control (Space for thrust, Ctrl to reduce)
+    if (m_keys[GLFW_KEY_SPACE]) {
+        m_controlInputs.throttle = std::min(m_controlInputs.throttle + 0.02f, 1.0f);
+    } else if (m_keys[GLFW_KEY_LEFT_CONTROL]) {
+        m_controlInputs.throttle = std::max(m_controlInputs.throttle - 0.02f, 0.0f);
+    } else {
+        // Auto-reduce throttle when not pressing space (for more realistic flight)
+        m_controlInputs.throttle = std::max(m_controlInputs.throttle - 0.005f, 0.0f);
     }
 }
 

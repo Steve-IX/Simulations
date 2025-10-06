@@ -11,20 +11,22 @@ namespace FlightSim {
 
 Renderer::Renderer()
     : m_aircraftShader(nullptr)
+    , m_terrainShader(nullptr)
+    , m_hudShader(nullptr)
     , m_skybox(nullptr)
     , m_terrain(nullptr)
     , m_aircraftMesh(nullptr)
-    , m_initialized(false)
-    , m_directionalLightDir(0.3f, -1.0f, 0.2f)
-    , m_directionalLightColor(1.0f, 1.0f, 0.9f)
-    , m_ambientLightColor(0.2f, 0.2f, 0.3f)
+    , m_directionalLightDir(0.5f, 1.0f, 0.3f)
+    , m_directionalLightColor(1.0f, 0.95f, 0.8f)
+    , m_ambientLightColor(0.3f, 0.3f, 0.4f)
     , m_fogDensity(0.00005f)
     , m_fogColor(0.7f, 0.8f, 0.9f)
     , m_wireframeMode(false)
     , m_showInstruments(true)
     , m_frameCount(0)
     , m_lastFPSUpdate(0.0f)
-    , m_currentFPS(0.0f) {
+    , m_currentFPS(0.0f)
+    , m_initialized(false) {
 }
 
 Renderer::~Renderer() {
@@ -52,7 +54,8 @@ bool Renderer::Initialize() {
     
     // Create meshes
     m_aircraftMesh = std::make_unique<Mesh>();
-    m_aircraftMesh->CreateAircraft();
+    *m_aircraftMesh = Mesh::CreateAircraft();
+    m_aircraftMesh->Upload();
     
     // Create skybox
     m_skybox = std::make_unique<SkyBox>();
@@ -68,12 +71,7 @@ bool Renderer::Initialize() {
         return false;
     }
     
-    // Set up lighting
-    m_lightPosition = glm::vec3(1000.0f, 1000.0f, 1000.0f);
-    m_lightColor = glm::vec3(1.0f, 0.95f, 0.8f); // Warm sunlight
-    m_ambientStrength = 0.3f;
-    m_diffuseStrength = 0.7f;
-    m_specularStrength = 0.5f;
+    // Initialize lighting (already set in constructor)
     
     m_initialized = true;
     return true;
@@ -109,10 +107,10 @@ void Renderer::RenderScene(const Camera& camera, const Aircraft& aircraft) {
     glm::mat4 projection = camera.GetProjectionMatrix();
     
     // Render skybox
-    m_skybox->Render(view, projection);
+    m_skybox->Render(camera);
     
     // Render terrain
-    m_terrain->Render(view, projection, m_lightPosition, m_lightColor);
+    m_terrain->Render(camera);
     
     // Render aircraft with enhanced visuals
     RenderAircraft(camera, aircraft, view, projection);
@@ -155,18 +153,20 @@ void Renderer::RenderAircraft(const Camera& camera, const Aircraft& aircraft,
     m_aircraftShader->SetMat4("projection", projection);
     
     // Set lighting
-    m_aircraftShader->SetVec3("lightPos", m_lightPosition);
-    m_aircraftShader->SetVec3("lightColor", m_lightColor);
+    // Calculate light position from directional light
+    glm::vec3 lightPos = -m_directionalLightDir * 1000.0f;
+    m_aircraftShader->SetVec3("lightPos", lightPos);
+    m_aircraftShader->SetVec3("lightColor", m_directionalLightColor);
     m_aircraftShader->SetVec3("viewPos", camera.GetPosition());
-    m_aircraftShader->SetFloat("ambientStrength", m_ambientStrength);
-    m_aircraftShader->SetFloat("diffuseStrength", m_diffuseStrength);
-    m_aircraftShader->SetFloat("specularStrength", m_specularStrength);
+    m_aircraftShader->SetFloat("ambientStrength", 0.3f);
+    m_aircraftShader->SetFloat("diffuseStrength", 0.7f);
+    m_aircraftShader->SetFloat("specularStrength", 0.5f);
     
     // Set material properties for better visibility
-    m_aircraftShader->SetVec3("material.ambient", glm::vec3(0.2f, 0.2f, 0.2f));
-    m_aircraftShader->SetVec3("material.diffuse", glm::vec3(0.8f, 0.8f, 0.8f));
-    m_aircraftShader->SetVec3("material.specular", glm::vec3(1.0f, 1.0f, 1.0f));
-    m_aircraftShader->SetFloat("material.shininess", 32.0f);
+    m_aircraftShader->SetVec3("material_ambient", glm::vec3(0.2f, 0.2f, 0.2f));
+    m_aircraftShader->SetVec3("material_diffuse", glm::vec3(0.8f, 0.8f, 0.8f));
+    m_aircraftShader->SetVec3("material_specular", glm::vec3(1.0f, 1.0f, 1.0f));
+    m_aircraftShader->SetFloat("material_shininess", 32.0f);
     
     // Add aircraft color based on state
     glm::vec3 aircraftColor = glm::vec3(0.7f, 0.7f, 0.9f); // Default blue-gray
@@ -176,6 +176,10 @@ void Renderer::RenderAircraft(const Camera& camera, const Aircraft& aircraft,
         aircraftColor = glm::vec3(0.7f, 0.9f, 0.7f); // Green tint at high altitude
     }
     m_aircraftShader->SetVec3("aircraftColor", aircraftColor);
+    
+    // Set fog uniforms
+    m_aircraftShader->SetFloat("fogDensity", m_fogDensity);
+    m_aircraftShader->SetVec3("fogColor", m_fogColor);
     
     // Render aircraft mesh
     m_aircraftMesh->Render();
@@ -206,88 +210,19 @@ void Renderer::RenderOrientationIndicators(const Aircraft& aircraft,
 
 void Renderer::RenderArrow(const glm::vec3& start, const glm::vec3& end, 
                           const glm::vec3& color, const glm::mat4& view, const glm::mat4& projection) {
-    // Simple line rendering for direction indicators
-    glUseProgram(0); // Use fixed function pipeline for simple lines
-    
-    glMatrixMode(GL_PROJECTION);
-    glLoadMatrixf(glm::value_ptr(projection));
-    
-    glMatrixMode(GL_MODELVIEW);
-    glLoadMatrixf(glm::value_ptr(view));
-    
-    glBegin(GL_LINES);
-    glColor3f(color.r, color.g, color.b);
-    glVertex3f(start.x, start.y, start.z);
-    glVertex3f(end.x, end.y, end.z);
-    glEnd();
-    
-    glColor3f(1.0f, 1.0f, 1.0f); // Reset color
+    // TODO: Implement with modern OpenGL using VAO/VBO
+    // For now, this is a placeholder - arrows can be rendered as part of the HUD
 }
 
 void Renderer::RenderFlightPath(const Aircraft& aircraft, 
                                const glm::mat4& view, const glm::mat4& projection) {
-    // Render a simple flight path trail
-    static std::vector<glm::vec3> trail;
-    static int trailIndex = 0;
-    
-    const AircraftState& state = aircraft.GetState();
-    
-    // Add current position to trail every few frames
-    if (trailIndex % 10 == 0) {
-        trail.push_back(state.position);
-        if (trail.size() > 100) { // Keep trail length manageable
-            trail.erase(trail.begin());
-        }
-    }
-    trailIndex++;
-    
-    // Render trail
-    if (trail.size() > 1) {
-        glUseProgram(0);
-        
-        glMatrixMode(GL_PROJECTION);
-        glLoadMatrixf(glm::value_ptr(projection));
-        
-        glMatrixMode(GL_MODELVIEW);
-        glLoadMatrixf(glm::value_ptr(view));
-        
-        glBegin(GL_LINE_STRIP);
-        glColor3f(1.0f, 1.0f, 0.0f); // Yellow trail
-        for (const auto& point : trail) {
-            glVertex3f(point.x, point.y, point.z);
-        }
-        glEnd();
-        
-        glColor3f(1.0f, 1.0f, 1.0f);
-    }
+    // TODO: Implement flight path trail with modern OpenGL
+    // For now, this is a placeholder
 }
 
 void Renderer::RenderGroundGrid(const glm::mat4& view, const glm::mat4& projection) {
-    // Render a reference grid on the ground
-    glUseProgram(0);
-    
-    glMatrixMode(GL_PROJECTION);
-    glLoadMatrixf(glm::value_ptr(projection));
-    
-    glMatrixMode(GL_MODELVIEW);
-    glLoadMatrixf(glm::value_ptr(view));
-    
-    glBegin(GL_LINES);
-    glColor3f(0.5f, 0.5f, 0.5f); // Gray grid
-    
-    // Draw grid lines
-    for (int i = -50; i <= 50; i += 10) {
-        // X lines
-        glVertex3f(i * 10.0f, 0.0f, -500.0f);
-        glVertex3f(i * 10.0f, 0.0f, 500.0f);
-        
-        // Z lines
-        glVertex3f(-500.0f, 0.0f, i * 10.0f);
-        glVertex3f(500.0f, 0.0f, i * 10.0f);
-    }
-    glEnd();
-    
-    glColor3f(1.0f, 1.0f, 1.0f);
+    // TODO: Implement ground grid with modern OpenGL
+    // For now, this is a placeholder
 }
 
 void Renderer::RenderInstruments(const Aircraft& aircraft) {

@@ -16,5 +16,13 @@ void main() {
         color = texColor * vec4(hudColor, alpha);
     }
     
+    // Add subtle glow effect for better readability
+    float glow = 0.2;
+    vec3 glowColor = hudColor * (1.0 + glow);
+    color.rgb = mix(color.rgb, glowColor, 0.3);
+    
+    // Anti-aliasing for crisp edges
+    color.a *= alpha;
+    
     FragColor = color;
 } 

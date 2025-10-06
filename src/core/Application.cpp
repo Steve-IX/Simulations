@@ -71,6 +71,9 @@ bool Application::Initialize() {
         return false;
     }
     
+    // Set input manager reference in HUD for control indicators
+    m_hud->SetInputManager(m_inputManager.get());
+    
     // Set up input callbacks
     m_window->SetKeyCallback([this](int key, int scancode, int action, int mods) {
         m_inputManager->ProcessKeyboard(key, scancode, action, mods);

@@ -18,7 +18,7 @@ Camera::Camera(float fov, float aspect, float nearPlane, float farPlane)
     , m_farPlane(farPlane)
     , m_yaw(-90.0f)
     , m_pitch(0.0f)
-    , m_mode(CameraMode::External)
+    , m_mode(CameraMode::Chase)  // Changed to Chase camera by default (behind the plane)
     , m_mouseSensitivity(0.1f)
     , m_movementSpeed(10.0f)
     , m_externalDistance(20.0f)
@@ -136,29 +136,47 @@ void Camera::UpdateCockpitCamera(const glm::vec3& aircraftPos, const glm::vec3& 
 }
 
 void Camera::UpdateExternalCamera(const glm::vec3& aircraftPos, const glm::vec3& aircraftForward, const glm::vec3& aircraftUp) {
-    // Position camera behind and above the aircraft
-    glm::vec3 offset = -aircraftForward * m_externalDistance + aircraftUp * m_externalHeight;
-    m_position = aircraftPos + offset;
+    // Enhanced third-person view with better positioning
+    float distance = 40.0f;  // Increased distance for better view
+    float height = 12.0f;    // Height above aircraft
     
-    // Look at the aircraft
-    m_front = glm::normalize(aircraftPos - m_position);
+    // Calculate desired camera position
+    glm::vec3 desiredPos = aircraftPos - aircraftForward * distance + aircraftUp * height;
+    
+    // Add some lateral offset for better viewing angle
+    glm::vec3 rightDir = glm::normalize(glm::cross(aircraftForward, aircraftUp));
+    desiredPos += rightDir * 8.0f;  // Offset to the right for cinematic view
+    
+    // Smooth camera movement
+    float lerpFactor = 0.08f;
+    m_position = glm::mix(m_position, desiredPos, lerpFactor);
+    
+    // Look at a point slightly ahead of the aircraft for better flight direction visualization
+    glm::vec3 lookTarget = aircraftPos + aircraftForward * 25.0f;
+    glm::vec3 targetFront = glm::normalize(lookTarget - m_position);
+    m_front = glm::mix(m_front, targetFront, 0.15f);
+    
     m_right = glm::normalize(glm::cross(m_front, m_worldUp));
     m_up = glm::normalize(glm::cross(m_right, m_front));
 }
 
 void Camera::UpdateChaseCamera(const glm::vec3& aircraftPos, const glm::vec3& aircraftForward, const glm::vec3& aircraftUp) {
-    // Similar to external but closer and following more smoothly
-    float chaseDistance = 20.0f;
-    float chaseHeight = 5.0f;
+    // MSFS-STYLE CHASE CAMERA - Professional, smooth, responsive
+    float chaseDistance = 25.0f;
+    float chaseHeight = 8.0f;
     
+    // Position directly behind and above
     glm::vec3 targetPos = aircraftPos - aircraftForward * chaseDistance + aircraftUp * chaseHeight;
     
-    // Smooth interpolation
-    float lerpFactor = 0.05f;
+    // Very smooth camera movement (MSFS-style)
+    float lerpFactor = 0.15f;
     m_position = glm::mix(m_position, targetPos, lerpFactor);
     
-    // Look at aircraft
-    m_front = glm::normalize(aircraftPos - m_position);
+    // Look at aircraft center with smooth tracking
+    glm::vec3 targetFront = glm::normalize(aircraftPos - m_position);
+    m_front = glm::mix(m_front, targetFront, 0.2f);
+    
+    // Proper camera orientation
     m_right = glm::normalize(glm::cross(m_front, m_worldUp));
     m_up = glm::normalize(glm::cross(m_right, m_front));
 }

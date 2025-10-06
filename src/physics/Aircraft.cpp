@@ -83,11 +83,11 @@ void Aircraft::SetOrientation(const glm::quat& orientation) {
 }
 
 void Aircraft::Reset() {
-    // Reset to initial state
+    // Reset to initial state - completely still
     m_state.position = glm::vec3(0.0f, 1000.0f, 0.0f);
-    m_state.velocity = glm::vec3(0.0f, 0.0f, 30.0f);  // Start with forward velocity
-    m_state.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
-    m_state.angularVelocity = glm::vec3(0.0f);
+    m_state.velocity = glm::vec3(0.0f, 0.0f, 0.0f);  // Start with no velocity
+    m_state.orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);  // Identity quaternion (no rotation)
+    m_state.angularVelocity = glm::vec3(0.0f, 0.0f, 0.0f);  // No rotation
     
     UpdateDerivedValues();
 }
@@ -119,7 +119,9 @@ void Aircraft::UpdateDerivedValues() {
 }
 
 void Aircraft::IntegratePhysics(float deltaTime, const glm::vec3& forces, const glm::vec3& torques) {
-    // Linear motion integration (Euler method for simplicity)
+    // MSFS-STYLE REALISTIC PHYSICS INTEGRATION
+    
+    // Linear motion integration with realistic damping
     glm::vec3 acceleration = forces / m_mass;
     m_state.velocity += acceleration * deltaTime;
     m_state.position += m_state.velocity * deltaTime;
@@ -129,19 +131,23 @@ void Aircraft::IntegratePhysics(float deltaTime, const glm::vec3& forces, const 
     glm::vec3 angularAcceleration = invInertia * torques;
     m_state.angularVelocity += angularAcceleration * deltaTime;
     
-    // Update orientation using angular velocity
+    // Realistic angular damping (less aggressive than arcade)
+    m_state.angularVelocity *= 0.98f;
+    
+    // Update orientation using angular velocity (proper quaternion integration)
     glm::quat angularVelQuat(0.0f, m_state.angularVelocity.x, m_state.angularVelocity.y, m_state.angularVelocity.z);
     glm::quat orientationDerivative = 0.5f * angularVelQuat * m_state.orientation;
     m_state.orientation += orientationDerivative * deltaTime;
     m_state.orientation = glm::normalize(m_state.orientation);
     
-    // Apply damping to prevent instability
-    m_state.angularVelocity *= 0.99f;
-    
-    // Prevent aircraft from going underground
-    if (m_state.position.y < 0.0f) {
-        m_state.position.y = 0.0f;
-        m_state.velocity.y = std::max(0.0f, m_state.velocity.y);
+    // Ground collision with realistic bounce
+    if (m_state.position.y < 5.0f) { // Close to ground
+        m_state.position.y = 5.0f;
+        // Realistic ground impact
+        if (m_state.velocity.y < 0.0f) {
+            m_state.velocity.y *= -0.3f; // Bounce with energy loss
+            m_state.velocity *= 0.7f; // Friction
+        }
     }
 }
 

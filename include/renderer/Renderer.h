@@ -75,6 +75,9 @@ private:
     int m_frameCount;
     float m_lastFPSUpdate;
     float m_currentFPS;
+    
+    // State
+    bool m_initialized;
 };
 
 } // namespace FlightSim 

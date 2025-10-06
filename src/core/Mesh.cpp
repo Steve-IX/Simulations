@@ -220,59 +220,156 @@ Mesh Mesh::CreateAircraft() {
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     
-    // Simple aircraft shape - fuselage, wings, tail
-    // Fuselage (elongated box)
-    float fuselageLength = 10.0f;
-    float fuselageWidth = 1.0f;
-    float fuselageHeight = 1.0f;
+    // Enhanced aircraft shape - fuselage, wings, tail, cockpit
+    // Fuselage (tapered body for more realistic look)
+    float fuselageLength = 12.0f;
+    float fuselageWidth = 1.2f;
+    float fuselageHeight = 1.2f;
     
-    // Fuselage vertices
-    vertices.push_back({{-fuselageLength*0.5f, -fuselageHeight*0.5f, -fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}});
-    vertices.push_back({{ fuselageLength*0.5f, -fuselageHeight*0.5f, -fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}});
-    vertices.push_back({{ fuselageLength*0.5f, -fuselageHeight*0.5f,  fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}});
-    vertices.push_back({{-fuselageLength*0.5f, -fuselageHeight*0.5f,  fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}});
+    // Nose section (more vertices for smoother shape)
+    vertices.push_back({{ fuselageLength*0.5f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.5f}});  // Nose tip
     
-    vertices.push_back({{-fuselageLength*0.5f,  fuselageHeight*0.5f, -fuselageWidth*0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
-    vertices.push_back({{ fuselageLength*0.5f,  fuselageHeight*0.5f, -fuselageWidth*0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}});
-    vertices.push_back({{ fuselageLength*0.5f,  fuselageHeight*0.5f,  fuselageWidth*0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}});
-    vertices.push_back({{-fuselageLength*0.5f,  fuselageHeight*0.5f,  fuselageWidth*0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}});
+    // Fuselage cross-sections
+    const float PI = 3.14159265359f;
+    for (int i = 0; i < 8; ++i) {
+        float angle = i * PI / 4.0f;
+        float x = fuselageLength * 0.3f;
+        float y = sin(angle) * fuselageHeight * 0.5f;
+        float z = cos(angle) * fuselageWidth * 0.5f;
+        vertices.push_back({{x, y, z}, glm::normalize(glm::vec3(0.2f, y, z)), {float(i)/8.0f, 0.3f}});
+    }
     
-    // Wings (simple rectangular wings)
-    float wingSpan = 8.0f;
-    float wingChord = 2.0f;
-    float wingThickness = 0.2f;
+    // Mid section (largest diameter)
+    for (int i = 0; i < 8; ++i) {
+        float angle = i * PI / 4.0f;
+        float x = 0.0f;
+        float y = sin(angle) * fuselageHeight * 0.6f;
+        float z = cos(angle) * fuselageWidth * 0.6f;
+        vertices.push_back({{x, y, z}, glm::normalize(glm::vec3(0.0f, y, z)), {float(i)/8.0f, 0.5f}});
+    }
+    
+    // Tail section
+    for (int i = 0; i < 8; ++i) {
+        float angle = i * PI / 4.0f;
+        float x = -fuselageLength * 0.4f;
+        float y = sin(angle) * fuselageHeight * 0.3f;
+        float z = cos(angle) * fuselageWidth * 0.3f;
+        vertices.push_back({{x, y, z}, glm::normalize(glm::vec3(-0.2f, y, z)), {float(i)/8.0f, 0.7f}});
+    }
+    
+    // Tail end
+    vertices.push_back({{-fuselageLength*0.5f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}, {0.5f, 1.0f}});
+    
+    int baseIdx = vertices.size();
+    
+    // Wings (swept back for more dynamic look)
+    float wingSpan = 10.0f;
+    float wingChord = 2.5f;
+    float wingThickness = 0.15f;
+    float wingSweep = 0.3f;  // Sweep angle
+    
+    // Main wings with dihedral angle
+    float dihedralAngle = 0.05f;
     
     // Left wing
-    vertices.push_back({{-wingChord*0.5f, -wingThickness*0.5f, -wingSpan*0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.0f}});
-    vertices.push_back({{ wingChord*0.5f, -wingThickness*0.5f, -wingSpan*0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.0f}});
-    vertices.push_back({{ wingChord*0.5f, -wingThickness*0.5f, -fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.5f}});
-    vertices.push_back({{-wingChord*0.5f, -wingThickness*0.5f, -fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.5f}});
+    vertices.push_back({{-wingChord*0.3f + wingSweep, -wingThickness, -fuselageWidth*0.5f}, 
+                       {0.0f, -0.8f, -0.2f}, {0.0f, 0.0f}});
+    vertices.push_back({{ wingChord*0.7f + wingSweep, -wingThickness, -fuselageWidth*0.5f}, 
+                       {0.0f, -0.8f, -0.2f}, {1.0f, 0.0f}});
+    vertices.push_back({{ wingChord*0.3f + wingSweep*2, -wingThickness + dihedralAngle, -wingSpan*0.5f}, 
+                       {0.0f, -0.7f, -0.3f}, {0.8f, 1.0f}});
+    vertices.push_back({{-wingChord*0.1f + wingSweep*2, -wingThickness + dihedralAngle, -wingSpan*0.5f}, 
+                       {0.0f, -0.7f, -0.3f}, {0.2f, 1.0f}});
     
     // Right wing
-    vertices.push_back({{-wingChord*0.5f, -wingThickness*0.5f,  fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 0.5f}});
-    vertices.push_back({{ wingChord*0.5f, -wingThickness*0.5f,  fuselageWidth*0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 0.5f}});
-    vertices.push_back({{ wingChord*0.5f, -wingThickness*0.5f,  wingSpan*0.5f}, {0.0f, -1.0f, 0.0f}, {1.0f, 1.0f}});
-    vertices.push_back({{-wingChord*0.5f, -wingThickness*0.5f,  wingSpan*0.5f}, {0.0f, -1.0f, 0.0f}, {0.0f, 1.0f}});
+    vertices.push_back({{-wingChord*0.3f + wingSweep, -wingThickness,  fuselageWidth*0.5f}, 
+                       {0.0f, -0.8f, 0.2f}, {0.0f, 0.0f}});
+    vertices.push_back({{ wingChord*0.7f + wingSweep, -wingThickness,  fuselageWidth*0.5f}, 
+                       {0.0f, -0.8f, 0.2f}, {1.0f, 0.0f}});
+    vertices.push_back({{ wingChord*0.3f + wingSweep*2, -wingThickness + dihedralAngle,  wingSpan*0.5f}, 
+                       {0.0f, -0.7f, 0.3f}, {0.8f, 1.0f}});
+    vertices.push_back({{-wingChord*0.1f + wingSweep*2, -wingThickness + dihedralAngle,  wingSpan*0.5f}, 
+                       {0.0f, -0.7f, 0.3f}, {0.2f, 1.0f}});
     
-    // Fuselage indices
-    std::vector<unsigned int> fuselageIndices = {
-        0, 1, 2,  2, 3, 0,  // Bottom
-        4, 7, 6,  6, 5, 4,  // Top
-        0, 4, 5,  5, 1, 0,  // Front
-        2, 6, 7,  7, 3, 2,  // Back
-        0, 3, 7,  7, 4, 0,  // Left
-        1, 5, 6,  6, 2, 1   // Right
-    };
+    // Tail surfaces (horizontal stabilizer)
+    float tailSpan = 4.0f;
+    float tailChord = 1.5f;
+    float tailPos = -fuselageLength * 0.35f;
     
-    // Wing indices
-    std::vector<unsigned int> wingIndices = {
-        8,  9,  10, 10, 11, 8,   // Left wing
-        12, 13, 14, 14, 15, 12   // Right wing
-    };
+    vertices.push_back({{tailPos - tailChord*0.5f, 0.3f, -tailSpan*0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}});
+    vertices.push_back({{tailPos + tailChord*0.5f, 0.3f, -tailSpan*0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}});
+    vertices.push_back({{tailPos + tailChord*0.5f, 0.3f,  tailSpan*0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}});
+    vertices.push_back({{tailPos - tailChord*0.5f, 0.3f,  tailSpan*0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}});
     
-    // Combine indices
-    for (auto idx : fuselageIndices) indices.push_back(idx);
-    for (auto idx : wingIndices) indices.push_back(idx);
+    // Vertical stabilizer
+    vertices.push_back({{tailPos - tailChord*0.3f, 0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f}});
+    vertices.push_back({{tailPos + tailChord*0.3f, 0.3f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 0.0f}});
+    vertices.push_back({{tailPos + tailChord*0.1f, 2.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.8f, 1.0f}});
+    vertices.push_back({{tailPos - tailChord*0.1f, 2.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.2f, 1.0f}});
+    
+    // Fuselage indices (connecting nose to sections)
+    for (int i = 0; i < 8; ++i) {
+        int next = (i + 1) % 8;
+        // Nose to first ring
+        indices.push_back(0);
+        indices.push_back(1 + i);
+        indices.push_back(1 + next);
+        
+        // First ring to mid section
+        indices.push_back(1 + i);
+        indices.push_back(9 + i);
+        indices.push_back(9 + next);
+        indices.push_back(9 + next);
+        indices.push_back(1 + next);
+        indices.push_back(1 + i);
+        
+        // Mid section to tail section
+        indices.push_back(9 + i);
+        indices.push_back(17 + i);
+        indices.push_back(17 + next);
+        indices.push_back(17 + next);
+        indices.push_back(9 + next);
+        indices.push_back(9 + i);
+        
+        // Tail section to tail end
+        indices.push_back(17 + i);
+        indices.push_back(25);
+        indices.push_back(17 + next);
+    }
+    
+    // Wing indices (left and right)
+    int wingBase = baseIdx;
+    indices.push_back(wingBase + 0);
+    indices.push_back(wingBase + 1);
+    indices.push_back(wingBase + 2);
+    indices.push_back(wingBase + 2);
+    indices.push_back(wingBase + 3);
+    indices.push_back(wingBase + 0);
+    
+    indices.push_back(wingBase + 4);
+    indices.push_back(wingBase + 5);
+    indices.push_back(wingBase + 6);
+    indices.push_back(wingBase + 6);
+    indices.push_back(wingBase + 7);
+    indices.push_back(wingBase + 4);
+    
+    // Horizontal stabilizer
+    int tailBase = wingBase + 8;
+    indices.push_back(tailBase + 0);
+    indices.push_back(tailBase + 1);
+    indices.push_back(tailBase + 2);
+    indices.push_back(tailBase + 2);
+    indices.push_back(tailBase + 3);
+    indices.push_back(tailBase + 0);
+    
+    // Vertical stabilizer
+    int vertBase = tailBase + 4;
+    indices.push_back(vertBase + 0);
+    indices.push_back(vertBase + 1);
+    indices.push_back(vertBase + 2);
+    indices.push_back(vertBase + 2);
+    indices.push_back(vertBase + 3);
+    indices.push_back(vertBase + 0);
     
     mesh.SetVertices(vertices);
     mesh.SetIndices(indices);

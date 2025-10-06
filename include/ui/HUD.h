@@ -10,6 +10,7 @@ namespace FlightSim {
 
 struct AircraftState;
 class Camera;
+class InputManager;
 
 class HUD {
 public:
@@ -21,6 +22,7 @@ public:
     
     void Update(const AircraftState& state, float deltaTime);
     void Render(const Camera& camera, const AircraftState& state);
+    void SetInputManager(InputManager* inputManager) { m_inputManager = inputManager; }
     
     void SetEnabled(bool enabled) { m_enabled = enabled; }
     bool IsEnabled() const { return m_enabled; }
@@ -46,7 +48,7 @@ private:
     std::unique_ptr<Shader> m_textShader;
     
     // OpenGL objects
-    unsigned int m_VAO, m_VBO;
+    unsigned int m_VAO, m_VBO, m_EBO;
     unsigned int m_fontTexture;
     
     // HUD settings
@@ -71,6 +73,17 @@ private:
     float m_smoothedHeading;
     float m_smoothedPitch;
     float m_smoothedRoll;
+    float m_smoothedVerticalSpeed;
+    
+    // HUD appearance
+    float m_hudAlpha;
+    bool m_showDebugInfo;
+    
+    // Input manager reference
+    InputManager* m_inputManager;
+    
+    // Helper functions
+    void RenderControlIndicators(const AircraftState& state);
 };
 
 } // namespace FlightSim 

@@ -116,19 +116,49 @@ void SkyBox::SetupShaders() {
         void main() {
             vec3 direction = normalize(TexCoords);
             
-            // Vertical gradient
-            float t = (direction.y + 1.0) * 0.5; // Convert from [-1,1] to [0,1]
-            vec3 skyColor = mix(bottomColor, topColor, t);
+            // Enhanced vertical gradient with exponential falloff
+            float t = (direction.y + 1.0) * 0.5;
+            t = smoothstep(0.0, 1.0, t);
             
-            // Sun effect
+            // Create more realistic atmospheric gradient
+            float atmosphereHeight = pow(t, 0.7);
+            vec3 skyColor = mix(bottomColor, topColor, atmosphereHeight);
+            
+            // Enhanced sun with corona and glow
             float sunDot = dot(direction, sunPosition);
-            float sunEffect = pow(max(sunDot, 0.0), 64.0);
-            skyColor += sunColor * sunEffect * sunIntensity;
             
-            // Horizon glow
+            // Sun disk
+            float sunDisk = smoothstep(0.9998, 0.9999, sunDot);
+            
+            // Sun corona
+            float sunCorona = pow(max(sunDot, 0.0), 128.0);
+            
+            // Sun glow (larger, softer)
+            float sunGlow = pow(max(sunDot, 0.0), 16.0);
+            
+            vec3 sunEffect = (sunDisk * 5.0 + sunCorona * 2.0 + sunGlow * 0.5) * sunColor * sunIntensity;
+            skyColor += sunEffect;
+            
+            // Enhanced horizon glow with color variation
             float horizonFactor = 1.0 - abs(direction.y);
-            horizonFactor = pow(horizonFactor, 2.0);
-            skyColor = mix(skyColor, vec3(1.0, 0.8, 0.6), horizonFactor * 0.1);
+            horizonFactor = pow(horizonFactor, 1.5);
+            
+            // Sunset/sunrise colors at horizon
+            vec3 horizonColor = mix(vec3(1.0, 0.9, 0.8), vec3(1.0, 0.7, 0.5), 
+                                    smoothstep(0.9, 1.0, abs(sunPosition.y)));
+            skyColor = mix(skyColor, horizonColor, horizonFactor * 0.3);
+            
+            // Atmospheric scattering effect
+            float scatter = pow(max(dot(direction, sunPosition), 0.0), 8.0);
+            skyColor += scatter * sunColor * sunIntensity * 0.2;
+            
+            // Add subtle cloudiness with procedural noise
+            float noise = fract(sin(dot(direction.xz, vec2(12.9898, 78.233))) * 43758.5453);
+            float clouds = smoothstep(0.6, 0.8, noise) * smoothstep(-0.3, 0.3, direction.y);
+            skyColor = mix(skyColor, vec3(1.0), clouds * 0.15);
+            
+            // Color grading for more vibrant sky
+            skyColor = pow(skyColor, vec3(0.9));
             
             FragColor = vec4(skyColor, 1.0);
         }
@@ -138,20 +168,51 @@ void SkyBox::SetupShaders() {
 }
 
 void SkyBox::UpdateSkyColors() {
-    // Update colors based on time of day
-    float dayFactor = sin(m_timeOfDay * 3.14159f); // 0 at midnight, 1 at noon
+    // Update colors based on time of day with smooth transitions
+    float dayFactor = sin(m_timeOfDay * 3.14159f * 2.0f);
+    
+    // Calculate sunrise/sunset factor
+    float sunriseFactor = 1.0f - abs(dayFactor);
+    sunriseFactor = pow(sunriseFactor, 2.0f);
     
     if (dayFactor > 0.0f) {
-        // Day colors
-        m_topColor = glm::mix(glm::vec3(0.2f, 0.2f, 0.4f), glm::vec3(0.5f, 0.7f, 1.0f), dayFactor);
-        m_bottomColor = glm::mix(glm::vec3(0.1f, 0.1f, 0.2f), glm::vec3(0.8f, 0.9f, 1.0f), dayFactor);
-        m_sunIntensity = dayFactor;
+        // Daytime colors - bright and vibrant
+        glm::vec3 dayTop = glm::vec3(0.3f, 0.5f, 0.9f);
+        glm::vec3 dayBottom = glm::vec3(0.6f, 0.8f, 1.0f);
+        
+        // Sunrise/sunset colors - warm and golden
+        glm::vec3 sunriseTop = glm::vec3(0.8f, 0.5f, 0.7f);
+        glm::vec3 sunriseBottom = glm::vec3(1.0f, 0.7f, 0.5f);
+        
+        // Blend between day and sunrise colors
+        m_topColor = glm::mix(dayTop, sunriseTop, sunriseFactor);
+        m_bottomColor = glm::mix(dayBottom, sunriseBottom, sunriseFactor);
+        
+        m_sunIntensity = 0.8f + 0.2f * dayFactor;
+        m_sunColor = glm::mix(glm::vec3(1.0f, 0.95f, 0.8f), 
+                              glm::vec3(1.0f, 0.6f, 0.3f), 
+                              sunriseFactor);
     } else {
-        // Night colors
-        m_topColor = glm::vec3(0.05f, 0.05f, 0.2f);
-        m_bottomColor = glm::vec3(0.02f, 0.02f, 0.1f);
-        m_sunIntensity = 0.0f;
+        // Twilight and night colors
+        float nightFactor = abs(dayFactor);
+        
+        glm::vec3 twilightTop = glm::vec3(0.2f, 0.2f, 0.5f);
+        glm::vec3 twilightBottom = glm::vec3(0.4f, 0.3f, 0.5f);
+        
+        glm::vec3 nightTop = glm::vec3(0.01f, 0.01f, 0.1f);
+        glm::vec3 nightBottom = glm::vec3(0.05f, 0.05f, 0.15f);
+        
+        m_topColor = glm::mix(twilightTop, nightTop, nightFactor);
+        m_bottomColor = glm::mix(twilightBottom, nightBottom, nightFactor);
+        
+        m_sunIntensity = 0.3f * (1.0f - nightFactor);
+        m_sunColor = glm::vec3(1.0f, 0.5f, 0.3f);
     }
+    
+    // Update sun position based on time of day
+    float sunAngle = m_timeOfDay * 3.14159f * 2.0f;
+    m_sunPosition = glm::vec3(cos(sunAngle) * 0.5f, sin(sunAngle), -0.3f);
+    m_sunPosition = glm::normalize(m_sunPosition);
 }
 
 } // namespace FlightSim 
